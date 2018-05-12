@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>UFO Sightings</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" media="screen" href="style.css" />
+    
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1 style="text-align:center;font-weight:bold">UFO Sightings</h1>
+                <hr>
+            </div>
+        </div>
+        
+        <form id="search-form">
+            
+            <div class="form-group">
+                <div class="row" id="search-bar-group">
+                    <!-- Search bars go here -->
+                </div>
+                <div class="row" style="margin-top: 8pt">
+                    <div class="col-md-12">
+                        <input id="search-submit" class="btn btn-default" type="submit" value="Search">
+                        <input id="clear-input" class="btn btn-default" type="submit" value="Clear Input">
+                    </div>
+                </div>
+            </div>
+        </form>
+        <div class="row">
+            <div class="col-md-12">
+                <p id="num-results">Loading data...</p>
+                <table class="table table-striped" id="ufo-table">
+                    <thead>
+                        <tr>
+                            <!-- <th>ID</th> -->
+                            <th>Date</th>
+                            <th>City</th>
+                            <th>State</th>
+                            <th>Country</th>
+                            <th>Shape</th>
+                            <th>Duration</th>
+                            <th>Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.7.3/d3.min.js"></script>
+    <script src="js/data.js"></script>
+    <script>
+        var maxEntriesPerPage = 1000;
+        var $ufoTable = d3.select("#ufo-table>tbody");
+        var $tbody = document.querySelector("tbody");
+        var $searchGroup = d3.select("#search-bar-group");
+
+        makeSearchBar("Date","date","e.g. 3/5/2013");
+        makeSearchBar("City");
+        makeSearchBar("State");
+        makeSearchBar("Country");
+        makeSearchBar("Shape");
+
+        var $dateInput = d3.select("#search-date");
+        var $cityInput = d3.select("#search-city");
+        var $stateInput = d3.select("#search-state");
+        var $countryInput = d3.select("#search-country");
+        var $shapeInput = d3.select("#search-shape");
+
+        var forms = [$dateInput,$cityInput,$stateInput,$countryInput,$shapeInput]
+
+        fillTable(dataSet);
+
+        function makeSearchBar(label, id=label.toLowerCase(), placeholder=`Filter by ${label.toLowerCase()}`){
+            var searchID = `search-${id}`
+            var $col = $searchGroup.append("div").attr("class","col-md-2");
+            $col.append("label").attr("for", searchID).text(label);
+            $col.append("input").attr("id", searchID).attr("class","form-control").attr("type", "text").attr("placeholder",placeholder);
+        }
+
+        d3.select("#search-submit").on("click",function(event){
+            d3.event.preventDefault();
+
+            var dateText = $dateInput.node().value.trim();
+            var cityText = $cityInput.node().value.trim();
+            var stateText = $stateInput.node().value.trim();
+            var countryText = $countryInput.node().value.trim();
+            var shapeText = $shapeInput.node().value.trim();
+            
+
+            var dataFiltered = dataSet.filter(function(entry){
+                return stringMatch(dateText, entry.datetime) &&
+                       stringMatch(cityText, entry.city) &&
+                       stringMatch(stateText, entry.state) &&
+                       stringMatch(countryText, entry.country) &&
+                       stringMatch(shapeText, entry.shape);
+            });
+
+            
+            fillTable(dataFiltered);
+        });
+
+        function stringMatch(input, entryValue) {
+            if (input == ""){
+                return true;
+            } else {
+                return (input.toLowerCase() == entryValue.toLowerCase());
+            }
+        }
+
+        d3.select("#clear-input").on("click",function(event){
+            d3.event.preventDefault();
+            
+            for (var i in forms){
+                forms[i].node().value = "";
+            }
+        });
+
+        function fillTable(dataDict) {
+            var numRows = Math.min(dataDict.length, maxEntriesPerPage);
+            d3.select("#num-results").text(`${numRows} results shown out of ${dataDict.length}`);
+            $tbody.innerHTML="";
+            for (var i = 0; i < numRows; i++) {
+                // Insert a row into the table at position i
+                var $row = $tbody.insertRow(i);
+                // Insert cells into the newly created row
+                var vals = Object.values(dataDict[i]);
+                for (var j = 0; j < vals.length; j++) {
+                    var $cell = $row.insertCell(j);
+                    $cell.innerHTML = vals[j];
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,1 +1,1 @@
-# javascript_homework
+# JavaScript Homework: [UFO Sightings](https://khmccurdy.github.io/javascript_homework/index.html)

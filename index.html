@@ -5,6 +5,9 @@
     <title>UFO Sightings</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" />
     <link rel="stylesheet" type="text/css" media="screen" href="style.css" />
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     
 </head>
 <body>
@@ -33,6 +36,42 @@
         <div class="row">
             <div class="col-md-12">
                 <p id="num-results">Loading data...</p>
+                <!-- Entries per Page dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                        Results per Page
+                        <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu" id="results-per-page-menu" aria-labelledby="dropdownMenu1">
+                        <li><a href="#">50</a></li>
+                        <li><a href="#">100</a></li>
+                        <li><a href="#">500</a></li>
+                        <li><a href="#">1000</a></li>
+                    </ul>
+                </div>
+                <!-- Page nav -->
+                <nav aria-label="Page navigation">
+                    <ul class="pagination">
+                        <li id="page-first"><a href="#">First</a></li>
+                        <li id="page-prev">
+                            <a href="#" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-num-button"><a href="#">1</a></li>
+                        <li class="page-num-button"><a href="#">2</a></li>
+                        <li class="page-num-button"><a href="#">3</a></li>
+                        <li class="page-num-button"><a href="#">4</a></li>
+                        <li class="page-num-button"><a href="#">5</a></li>
+                        <li id="page-next">
+                            <a href="#" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li id="page-last"><a href="#">Last</a></li>
+                    </ul>
+                    </nav>
+                <!-- The table -->
                 <table class="table table-striped" id="ufo-table">
                     <thead>
                         <tr>
@@ -57,9 +96,13 @@
     <script src="js/data.js"></script>
     <script>
         var maxEntriesPerPage = 1000;
+        var pageNumber = 0;
+
         var $ufoTable = d3.select("#ufo-table>tbody");
         var $tbody = document.querySelector("tbody");
         var $searchGroup = d3.select("#search-bar-group");
+
+        var dataFiltered = dataSet.filter(x=>true);
 
         makeSearchBar("Date","date","e.g. 3/5/2013");
         makeSearchBar("City");
@@ -75,15 +118,19 @@
 
         var forms = [$dateInput,$cityInput,$stateInput,$countryInput,$shapeInput]
 
-        fillTable(dataSet);
+        var $resultsDropdownOptions = d3.selectAll("#results-per-page-menu>li>a");
 
+        fillTable(dataSet);
+        updatePageButtons();
+
+        // Function to generate search bars
         function makeSearchBar(label, id=label.toLowerCase(), placeholder=`Filter by ${label.toLowerCase()}`){
             var searchID = `search-${id}`
             var $col = $searchGroup.append("div").attr("class","col-md-2");
             $col.append("label").attr("for", searchID).text(label);
             $col.append("input").attr("id", searchID).attr("class","form-control").attr("type", "text").attr("placeholder",placeholder);
         }
-
+        // Submit search results
         d3.select("#search-submit").on("click",function(event){
             d3.event.preventDefault();
 
@@ -93,19 +140,18 @@
             var countryText = $countryInput.node().value.trim();
             var shapeText = $shapeInput.node().value.trim();
             
-
-            var dataFiltered = dataSet.filter(function(entry){
+            dataFiltered = dataSet.filter(function(entry){
                 return stringMatch(dateText, entry.datetime) &&
                        stringMatch(cityText, entry.city) &&
                        stringMatch(stateText, entry.state) &&
                        stringMatch(countryText, entry.country) &&
                        stringMatch(shapeText, entry.shape);
             });
-
-            
+            pageNumber = 0;
             fillTable(dataFiltered);
+            updatePageButtons();
         });
-
+        
         function stringMatch(input, entryValue) {
             if (input == ""){
                 return true;
@@ -113,6 +159,8 @@
                 return (input.toLowerCase() == entryValue.toLowerCase());
             }
         }
+
+        // Clear Input
 
         d3.select("#clear-input").on("click",function(event){
             d3.event.preventDefault();
@@ -122,20 +170,121 @@
             }
         });
 
-        function fillTable(dataDict) {
-            var numRows = Math.min(dataDict.length, maxEntriesPerPage);
-            d3.select("#num-results").text(`${numRows} results shown out of ${dataDict.length}`);
+        // Select number of results per page
+
+        $resultsDropdownOptions.on("click", function(){
+            var numSelected = parseInt(this.text);
+            maxEntriesPerPage = numSelected;
+            pageNumber = 0;
+            fillTable(dataFiltered);
+            updatePageButtons();
+        });
+
+        // Page buttons
+
+        d3.select("#page-first").on("click",function(){
+            pageNumber = 0;
+            fillTable(dataFiltered);
+            updatePageButtons();
+        });
+
+        d3.select("#page-last").on("click",function(){
+            pageNumber = totalPages()-1;
+            fillTable(dataFiltered);
+            updatePageButtons();
+        });
+
+        d3.select("#page-next").on("click",function(){
+            if (d3.select(this).classed("disabled")){ return; }
+            pageNumber ++;
+            fillTable(dataFiltered);
+            updatePageButtons();
+        });
+
+        d3.select("#page-prev").on("click",function(){
+            if (d3.select(this).classed("disabled")){ return; }
+            pageNumber --;
+            fillTable(dataFiltered);
+            updatePageButtons();
+        });
+
+        d3.selectAll(".page-num-button>a").on("click",function(){
+            pageNumber = parseInt(this.text)-1;
+            fillTable(dataFiltered);
+            updatePageButtons();
+        })
+
+        function updatePageButtons(){
+            console.log(pageNumber);
+            if (pageNumber==0){
+                d3.select("#page-prev").classed("disabled", true);
+            } else {
+                d3.select("#page-prev").classed("disabled", false);
+            }
+
+            if (pageNumber==totalPages()-1){
+                d3.select("#page-next").classed("disabled", true);
+            } else {
+                d3.select("#page-next").classed("disabled", false);
+            }
+
+            var startNum = 0;
+            var $pageButtons = d3.selectAll(".page-num-button")._groups[0];
+            var $pageLabels = d3.selectAll(".page-num-button>a")._groups[0];
+            d3.selectAll(".page-num-button").attr("style","");
+            //console.log($pageLabels[3].innerText)
+            var tp = totalPages();
+
+            if (tp < 5){
+                
+                for (var i = tp; i<5; i++){
+                    d3.select($pageButtons[i]).attr("style","display:none");
+                }
+            } else if (tp > 5){
+                if (pageNumber <= 2){
+                    // startNum's still zero
+                } else if (pageNumber >= tp-3){
+                    startNum = tp-5;
+                } else {
+                    startNum = pageNumber-2;
+                }
+                
+            }
+            for (var i=0;i<5;i++){
+                $pageLabels[i].innerText = startNum+i+1;
+                if (startNum+i==pageNumber){
+                    d3.select($pageButtons[i]).classed("active", true);
+                }else{
+                    d3.select($pageButtons[i]).classed("active", false);
+                }
+
+            }
+        }
+
+        // Render table function
+
+        function fillTable(dataDict, pageIndex = pageNumber, maxEntries=maxEntriesPerPage) {
+            var minEntry = (pageIndex)*maxEntries;
+            var maxEntry = Math.min(dataDict.length, (pageIndex+1)*maxEntries);
+            var numPages = Math.ceil(dataDict.length/maxEntries);
+            var numRows = maxEntry-minEntry;
+            
+            d3.select("#num-results").text(`${numRows} results shown out of ${dataDict.length} (page ${pageIndex+1} of ${numPages})`);
             $tbody.innerHTML="";
             for (var i = 0; i < numRows; i++) {
                 // Insert a row into the table at position i
                 var $row = $tbody.insertRow(i);
                 // Insert cells into the newly created row
-                var vals = Object.values(dataDict[i]);
+                var vals = Object.values(dataDict[i+minEntry]);
                 for (var j = 0; j < vals.length; j++) {
                     var $cell = $row.insertCell(j);
                     $cell.innerHTML = vals[j];
                 }
             }
+        }
+
+        function totalPages(){
+            return Math.ceil(dataFiltered.length/maxEntriesPerPage);
         }
     </script>
 </body>
